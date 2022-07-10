@@ -1,0 +1,174 @@
+#include <array>
+#include <cassert>
+#include <iostream>
+#include <SDL2/SDL.h>
+
+#define WORLD_WIDTH 200
+#define WORLD_HEIGHT 200
+#define CELL_SCALE 5
+
+enum CellType
+{
+    CELL_TYPE_NONE,
+    CELL_TYPE_SAND,
+    //CELL_TYPE_WATER,
+};
+
+struct Cell
+{
+    CellType type;
+};
+
+using World_t = std::array<Cell, WORLD_WIDTH*WORLD_HEIGHT>;
+
+Cell& getParticle(World_t& world, int x, int y)
+{
+    assert(x >= 0 && x < WORLD_WIDTH);
+    assert(y >= 0 && y < WORLD_HEIGHT);
+    return world[y*WORLD_WIDTH+x];
+}
+
+const Cell& getParticle(const World_t& world, int x, int y)
+{
+    assert(x >= 0 && x < WORLD_WIDTH);
+    assert(y >= 0 && y < WORLD_HEIGHT);
+    return world[y*WORLD_WIDTH+x];
+}
+
+void stepSimulation(World_t* world)
+{
+    for (int y{WORLD_HEIGHT-1}; y >= 0; --y)
+    {
+        for (int x{}; x < WORLD_WIDTH; ++x)
+        {
+            const Cell& cell = getParticle(*world, x, y);
+            bool couldMove = false;
+
+            switch (cell.type)
+            {
+            case CELL_TYPE_NONE:
+                break;
+
+            case CELL_TYPE_SAND:
+                if (y == WORLD_HEIGHT-1)
+                    continue; // The bottom particles can't fall
+
+                {
+                    Cell& cellBelow = getParticle(*world, x, y+1);
+                    if (cellBelow.type == CELL_TYPE_NONE)
+                    {
+                        cellBelow.type = CELL_TYPE_SAND;
+                        couldMove = true;
+                    }
+                }
+
+                if (!couldMove && x > 0)
+                {
+                    Cell& cellLeftBelow = getParticle(*world, x-1, y+1);
+                    if (cellLeftBelow.type == CELL_TYPE_NONE)
+                    {
+                        cellLeftBelow.type = CELL_TYPE_SAND;
+                        couldMove = true;
+                    }
+                }
+
+                if (!couldMove && x < WORLD_WIDTH-1)
+                {
+                    Cell& cellRightBelow = getParticle(*world, x+1, y+1);
+                    if (cellRightBelow.type == CELL_TYPE_NONE)
+                    {
+                        cellRightBelow.type = CELL_TYPE_SAND;
+                        couldMove = true;
+                    }
+                }
+                break;
+            }
+
+            if (couldMove)
+                getParticle(*world, x, y).type = CELL_TYPE_NONE;
+        }
+    }
+}
+
+void drawWorld(const World_t& world, SDL_Renderer* rend)
+{
+    for (int y{}; y < WORLD_HEIGHT; ++y)
+    {
+        for (int x{}; x < WORLD_WIDTH; ++x)
+        {
+            const Cell& cell = getParticle(world, x, y);
+            if (cell.type == CELL_TYPE_NONE)
+                continue;
+
+            switch (cell.type)
+            {
+            case CELL_TYPE_NONE: break;
+            case CELL_TYPE_SAND: SDL_SetRenderDrawColor(rend, 153, 149, 125, 255);
+            }
+
+            SDL_Rect rect{x*CELL_SCALE, y*CELL_SCALE, CELL_SCALE, CELL_SCALE};
+            SDL_RenderFillRect(rend, &rect);
+        }
+    }
+}
+
+int main()
+{
+    SDL_Window* win = SDL_CreateWindow("SandSim",
+            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+            WORLD_WIDTH*CELL_SCALE, WORLD_HEIGHT*CELL_SCALE,
+            0);
+    assert(win);
+
+    SDL_Renderer* rend = SDL_CreateRenderer(win, 0, SDL_RENDERER_PRESENTVSYNC);
+    assert(rend);
+
+    World_t world{};
+
+    bool isLMouseBtnDown = false;
+    bool running = true;
+    while (true)
+    {
+        SDL_Event event;
+        while (running && SDL_PollEvent(&event))
+        {
+            switch (event.type)
+            {
+                case SDL_QUIT:
+                    running = false;
+                    break;
+
+                case SDL_MOUSEBUTTONDOWN:
+                    if (event.button.button == SDL_BUTTON_LEFT)
+                        isLMouseBtnDown = true;
+                    break;
+
+                case SDL_MOUSEBUTTONUP:
+                    if (event.button.button == SDL_BUTTON_LEFT)
+                        isLMouseBtnDown = true;
+                    break;
+
+                case SDL_MOUSEMOTION:
+                    if (isLMouseBtnDown)
+                        getParticle(world, event.motion.x/CELL_SCALE, event.motion.y/CELL_SCALE).type = CELL_TYPE_SAND;
+                    break;
+            }
+        }
+        if (!running)
+            break;
+
+        SDL_SetRenderDrawColor(rend, 50, 50, 50, 255);
+        SDL_RenderClear(rend);
+
+        stepSimulation(&world);
+        drawWorld(world, rend);
+
+        SDL_RenderPresent(rend);
+        //SDL_Delay(16);
+    }
+
+    SDL_DestroyWindow(win);
+    SDL_DestroyRenderer(rend);
+    SDL_Quit();
+    return 0;
+}
