@@ -126,6 +126,7 @@ int main()
     World_t world{};
 
     bool isLMouseBtnDown = false;
+    bool isRMouseBtnDown = false;
     bool running = true;
     while (true)
     {
@@ -141,21 +142,26 @@ int main()
                 case SDL_MOUSEBUTTONDOWN:
                     if (event.button.button == SDL_BUTTON_LEFT)
                         isLMouseBtnDown = true;
+                    else if (event.button.button == SDL_BUTTON_RIGHT)
+                        isRMouseBtnDown = true;
                     break;
 
                 case SDL_MOUSEBUTTONUP:
                     if (event.button.button == SDL_BUTTON_LEFT)
-                        isLMouseBtnDown = true;
-                    break;
-
-                case SDL_MOUSEMOTION:
-                    if (isLMouseBtnDown)
-                        getParticle(world, event.motion.x/CELL_SCALE, event.motion.y/CELL_SCALE).type = CELL_TYPE_SAND;
+                        isLMouseBtnDown = false;
+                    else if (event.button.button == SDL_BUTTON_RIGHT)
+                        isRMouseBtnDown = false;
                     break;
             }
         }
         if (!running)
             break;
+
+        int mouseX, mouseY;
+        SDL_GetMouseState(&mouseX, &mouseY);
+        const bool isMouseInWindow
+            = (mouseX >= 0 && mouseX < WORLD_WIDTH*CELL_SCALE)
+            && (mouseY >= 0 && mouseY < WORLD_HEIGHT*CELL_SCALE);
 
         SDL_SetRenderDrawColor(rend, 50, 50, 50, 255);
         SDL_RenderClear(rend);
