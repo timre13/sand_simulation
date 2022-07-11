@@ -11,7 +11,7 @@ enum CellType : uint8_t
 {
     CELL_TYPE_NONE,
     CELL_TYPE_SAND,
-    //CELL_TYPE_WATER,
+    CELL_TYPE_WATER,
 };
 
 struct Cell
@@ -92,6 +92,48 @@ bool simulateSand(World_t* world, int x, int y, CellType newType, bool isEven)
     return couldMove;
 }
 
+bool simulateWater(World_t* world, int x, int y, CellType newType, bool isEven)
+{
+    bool couldMove = false;
+
+    auto doLeft{[&](){
+        if (!couldMove && x > 0)
+        {
+            Cell& cellLeft = getParticle(*world, x-1, y);
+            if (cellLeft.type == CELL_TYPE_NONE)
+            {
+                cellLeft.type = newType;
+                couldMove = true;
+            }
+        }
+    }};
+
+    auto doRight{[&](){
+        if (!couldMove && x < WORLD_WIDTH-1)
+        {
+            Cell& cellRight = getParticle(*world, x+1, y);
+            if (cellRight.type == CELL_TYPE_NONE)
+            {
+                cellRight.type = newType;
+                couldMove = true;
+            }
+        }
+    }};
+
+    if (isEven)
+    {
+        doRight();
+        doLeft();
+    }
+    else
+    {
+        doLeft();
+        doRight();
+    }
+
+    return couldMove;
+}
+
 void stepSimulation(World_t* world, ulong frame)
 {
     const bool isEven = (frame % 2 == 0);
@@ -110,6 +152,11 @@ void stepSimulation(World_t* world, ulong frame)
             case CELL_TYPE_SAND:
                 couldMove = simulateSand(world, x, y, CELL_TYPE_SAND, isEven);
                 break;
+
+            case CELL_TYPE_WATER:
+                couldMove = simulateSand(world, x, y, CELL_TYPE_WATER, isEven);
+                if (!couldMove)
+                    couldMove = simulateWater(world, x, y, CELL_TYPE_WATER, isEven);
                 break;
             }
 
@@ -132,7 +179,8 @@ void drawWorld(const World_t& world, SDL_Renderer* rend)
             switch (cell.type)
             {
             case CELL_TYPE_NONE: break;
-            case CELL_TYPE_SAND: SDL_SetRenderDrawColor(rend, 153, 149, 125, 255);
+            case CELL_TYPE_SAND: SDL_SetRenderDrawColor(rend, 153, 149, 125, 255); break;
+            case CELL_TYPE_WATER: SDL_SetRenderDrawColor(rend, 50, 50, 255, 255); break;
             }
 
             SDL_Rect rect{x*CELL_SCALE, y*CELL_SCALE, CELL_SCALE, CELL_SCALE};
