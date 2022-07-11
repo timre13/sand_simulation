@@ -45,8 +45,9 @@ bool simulateSand(World_t* world, int x, int y, CellType newType, bool isEven)
     // Below
     {
         Cell& cellBelow = getParticle(*world, x, y+1);
-        if (cellBelow.type == CELL_TYPE_NONE)
+        if (cellBelow.type == CELL_TYPE_NONE || (newType == CELL_TYPE_SAND && cellBelow.type == CELL_TYPE_WATER))
         {
+            getParticle(*world, x, y).type = ((newType == CELL_TYPE_SAND && cellBelow.type == CELL_TYPE_WATER) ? CELL_TYPE_WATER : CELL_TYPE_NONE);
             cellBelow.type = newType;
             couldMove = true;
         }
@@ -57,8 +58,9 @@ bool simulateSand(World_t* world, int x, int y, CellType newType, bool isEven)
         if (!couldMove && x > 0)
         {
             Cell& cellLeftBelow = getParticle(*world, x-1, y+1);
-            if (cellLeftBelow.type == CELL_TYPE_NONE)
+            if (cellLeftBelow.type == CELL_TYPE_NONE || (newType == CELL_TYPE_SAND && cellLeftBelow.type == CELL_TYPE_WATER))
             {
+                getParticle(*world, x, y).type = ((newType == CELL_TYPE_SAND && cellLeftBelow.type == CELL_TYPE_WATER) ? CELL_TYPE_WATER : CELL_TYPE_NONE);
                 cellLeftBelow.type = newType;
                 couldMove = true;
             }
@@ -70,8 +72,9 @@ bool simulateSand(World_t* world, int x, int y, CellType newType, bool isEven)
         if (!couldMove && x < WORLD_WIDTH-1)
         {
             Cell& cellRightBelow = getParticle(*world, x+1, y+1);
-            if (cellRightBelow.type == CELL_TYPE_NONE)
+            if (cellRightBelow.type == CELL_TYPE_NONE || (newType == CELL_TYPE_SAND && cellRightBelow.type == CELL_TYPE_WATER))
             {
+                getParticle(*world, x, y).type = ((newType == CELL_TYPE_SAND && cellRightBelow.type == CELL_TYPE_WATER) ? CELL_TYPE_WATER : CELL_TYPE_NONE);
                 cellRightBelow.type = newType;
                 couldMove = true;
             }
@@ -96,6 +99,8 @@ bool simulateWater(World_t* world, int x, int y, CellType newType, bool isEven)
 {
     bool couldMove = false;
 
+    couldMove = simulateSand(world, x, y, newType, isEven);
+
     auto doLeft{[&](){
         if (!couldMove && x > 0)
         {
@@ -104,6 +109,7 @@ bool simulateWater(World_t* world, int x, int y, CellType newType, bool isEven)
             {
                 cellLeft.type = newType;
                 couldMove = true;
+                getParticle(*world, x, y).type = CELL_TYPE_NONE;
             }
         }
     }};
@@ -116,6 +122,7 @@ bool simulateWater(World_t* world, int x, int y, CellType newType, bool isEven)
             {
                 cellRight.type = newType;
                 couldMove = true;
+                getParticle(*world, x, y).type = CELL_TYPE_NONE;
             }
         }
     }};
@@ -142,7 +149,6 @@ void stepSimulation(World_t* world, ulong frame)
         for (int x{isEven ? 0 : WORLD_WIDTH-1}; (isEven ? x < WORLD_WIDTH : x >= 0); (isEven ? ++x : --x))
         {
             const Cell& cell = getParticle(*world, x, y);
-            bool couldMove = false;
 
             switch (cell.type)
             {
@@ -150,18 +156,13 @@ void stepSimulation(World_t* world, ulong frame)
                 break;
 
             case CELL_TYPE_SAND:
-                couldMove = simulateSand(world, x, y, CELL_TYPE_SAND, isEven);
+                simulateSand(world, x, y, CELL_TYPE_SAND, isEven);
                 break;
 
             case CELL_TYPE_WATER:
-                couldMove = simulateSand(world, x, y, CELL_TYPE_WATER, isEven);
-                if (!couldMove)
-                    couldMove = simulateWater(world, x, y, CELL_TYPE_WATER, isEven);
+                simulateWater(world, x, y, CELL_TYPE_WATER, isEven);
                 break;
             }
-
-            if (couldMove)
-                getParticle(*world, x, y).type = CELL_TYPE_NONE;
         }
     }
 }
