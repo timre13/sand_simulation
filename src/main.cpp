@@ -35,11 +35,69 @@ const Cell& getParticle(const World_t& world, int x, int y)
     return world[y*WORLD_WIDTH+x];
 }
 
-void stepSimulation(World_t* world)
+bool simulateSand(World_t* world, int x, int y, CellType newType, bool isEven)
 {
+    if (y == WORLD_HEIGHT-1)
+        return false; // The bottom particles can't fall
+
+    bool couldMove = false;
+
+    // Below
+    {
+        Cell& cellBelow = getParticle(*world, x, y+1);
+        if (cellBelow.type == CELL_TYPE_NONE)
+        {
+            cellBelow.type = newType;
+            couldMove = true;
+        }
+    }
+
+    // Left below
+    auto doLeft{[&](){
+        if (!couldMove && x > 0)
+        {
+            Cell& cellLeftBelow = getParticle(*world, x-1, y+1);
+            if (cellLeftBelow.type == CELL_TYPE_NONE)
+            {
+                cellLeftBelow.type = newType;
+                couldMove = true;
+            }
+        }
+    }};
+
+    // Right below
+    auto doRight{[&](){
+        if (!couldMove && x < WORLD_WIDTH-1)
+        {
+            Cell& cellRightBelow = getParticle(*world, x+1, y+1);
+            if (cellRightBelow.type == CELL_TYPE_NONE)
+            {
+                cellRightBelow.type = newType;
+                couldMove = true;
+            }
+        }
+    }};
+
+    if (isEven)
+    {
+        doLeft();
+        doRight();
+    }
+    else
+    {
+        doRight();
+        doLeft();
+    }
+
+    return couldMove;
+}
+
+void stepSimulation(World_t* world, ulong frame)
+{
+    const bool isEven = (frame % 2 == 0);
     for (int y{WORLD_HEIGHT-1}; y >= 0; --y)
     {
-        for (int x{}; x < WORLD_WIDTH; ++x)
+        for (int x{isEven ? 0 : WORLD_WIDTH-1}; (isEven ? x < WORLD_WIDTH : x >= 0); (isEven ? ++x : --x))
         {
             const Cell& cell = getParticle(*world, x, y);
             bool couldMove = false;
@@ -50,37 +108,8 @@ void stepSimulation(World_t* world)
                 break;
 
             case CELL_TYPE_SAND:
-                if (y == WORLD_HEIGHT-1)
-                    continue; // The bottom particles can't fall
-
-                {
-                    Cell& cellBelow = getParticle(*world, x, y+1);
-                    if (cellBelow.type == CELL_TYPE_NONE)
-                    {
-                        cellBelow.type = CELL_TYPE_SAND;
-                        couldMove = true;
-                    }
-                }
-
-                if (!couldMove && x > 0)
-                {
-                    Cell& cellLeftBelow = getParticle(*world, x-1, y+1);
-                    if (cellLeftBelow.type == CELL_TYPE_NONE)
-                    {
-                        cellLeftBelow.type = CELL_TYPE_SAND;
-                        couldMove = true;
-                    }
-                }
-
-                if (!couldMove && x < WORLD_WIDTH-1)
-                {
-                    Cell& cellRightBelow = getParticle(*world, x+1, y+1);
-                    if (cellRightBelow.type == CELL_TYPE_NONE)
-                    {
-                        cellRightBelow.type = CELL_TYPE_SAND;
-                        couldMove = true;
-                    }
-                }
+                couldMove = simulateSand(world, x, y, CELL_TYPE_SAND, isEven);
+                break;
                 break;
             }
 
@@ -125,6 +154,8 @@ int main()
 
     World_t world{};
 
+    ulong frame{};
+
     bool isLMouseBtnDown = false;
     bool isRMouseBtnDown = false;
     bool running = true;
@@ -167,10 +198,12 @@ int main()
         SDL_RenderClear(rend);
 
         stepSimulation(&world);
+        stepSimulation(&world, frame);
         drawWorld(world, rend);
 
         SDL_RenderPresent(rend);
         //SDL_Delay(16);
+        ++frame;
     }
 
     SDL_DestroyWindow(win);
