@@ -7,7 +7,7 @@
 #define WORLD_HEIGHT 200
 #define CELL_SCALE 5
 
-enum CellType
+enum CellType : uint8_t
 {
     CELL_TYPE_NONE,
     CELL_TYPE_SAND,
@@ -16,7 +16,7 @@ enum CellType
 
 struct Cell
 {
-    CellType type;
+    CellType type : 4;
 };
 
 using World_t = std::array<Cell, WORLD_WIDTH*WORLD_HEIGHT>;
