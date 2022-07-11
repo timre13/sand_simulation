@@ -191,6 +191,8 @@ void drawWorld(const World_t& world, SDL_Renderer* rend)
 
 int main()
 {
+    std::srand(time(nullptr));
+
     SDL_Window* win = SDL_CreateWindow("SandSim",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
             WORLD_WIDTH*CELL_SCALE, WORLD_HEIGHT*CELL_SCALE,
@@ -245,7 +247,27 @@ int main()
         SDL_SetRenderDrawColor(rend, 50, 50, 50, 255);
         SDL_RenderClear(rend);
 
-        stepSimulation(&world);
+        if (isMouseInWindow && isLMouseBtnDown)
+        {
+            const int cellX = mouseX/CELL_SCALE;
+            const int cellY = mouseY/CELL_SCALE;
+            for (int i{-5}; i <= 5; ++i)
+            {
+                if (rand() % 2 && cellX+i >= 0 && cellX+i < WORLD_WIDTH)
+                    getParticle(world, cellX+i, cellY).type = CELL_TYPE_SAND;
+            }
+        }
+        if (isMouseInWindow && isRMouseBtnDown)
+        {
+            const int cellX = mouseX/CELL_SCALE;
+            const int cellY = mouseY/CELL_SCALE;
+            for (int i{-5}; i <= 5; ++i)
+            {
+                if (rand() % 2 && cellX+i >= 0 && cellX+i < WORLD_WIDTH)
+                    getParticle(world, cellX+i, cellY).type = CELL_TYPE_WATER;
+            }
+        }
+
         stepSimulation(&world, frame);
         drawWorld(world, rend);
 
