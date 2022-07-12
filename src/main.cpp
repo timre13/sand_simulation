@@ -7,6 +7,8 @@
 #define WORLD_HEIGHT 500
 #define CELL_SCALE 2
 
+#define BRUSH_RAD 5
+
 enum CellType : uint8_t
 {
     CELL_TYPE_NONE,
@@ -31,14 +33,14 @@ struct Cell
 
 using World_t = std::array<Cell, WORLD_WIDTH*WORLD_HEIGHT>;
 
-Cell& getParticle(World_t& world, int x, int y)
+Cell& getCell(World_t& world, int x, int y)
 {
     assert(x >= 0 && x < WORLD_WIDTH);
     assert(y >= 0 && y < WORLD_HEIGHT);
     return world[y*WORLD_WIDTH+x];
 }
 
-const Cell& getParticle(const World_t& world, int x, int y)
+const Cell& getCell(const World_t& world, int x, int y)
 {
     assert(x >= 0 && x < WORLD_WIDTH);
     assert(y >= 0 && y < WORLD_HEIGHT);
@@ -54,10 +56,10 @@ bool simulateSand(World_t* world, int x, int y, CellType newType, bool isEven)
 
     // Below
     {
-        Cell& cellBelow = getParticle(*world, x, y+1);
+        Cell& cellBelow = getCell(*world, x, y+1);
         if (cellBelow.type == CELL_TYPE_NONE || (newType == CELL_TYPE_SAND && cellBelow.type == CELL_TYPE_WATER))
         {
-            auto& cell = getParticle(*world, x, y);
+            auto& cell = getCell(*world, x, y);
             cell.type = ((newType == CELL_TYPE_SAND && cellBelow.type == CELL_TYPE_WATER) ? CELL_TYPE_WATER : CELL_TYPE_NONE);
             cell.isModified = true;
             cellBelow.type = newType;
@@ -70,10 +72,10 @@ bool simulateSand(World_t* world, int x, int y, CellType newType, bool isEven)
     auto doLeft{[&](){
         if (!couldMove && x > 0)
         {
-            Cell& cellLeftBelow = getParticle(*world, x-1, y+1);
+            Cell& cellLeftBelow = getCell(*world, x-1, y+1);
             if (cellLeftBelow.type == CELL_TYPE_NONE || (newType == CELL_TYPE_SAND && cellLeftBelow.type == CELL_TYPE_WATER))
             {
-                auto& cell = getParticle(*world, x, y);
+                auto& cell = getCell(*world, x, y);
                 cell.type = ((newType == CELL_TYPE_SAND && cellLeftBelow.type == CELL_TYPE_WATER) ? CELL_TYPE_WATER : CELL_TYPE_NONE);
                 cell.isModified = true;
                 cellLeftBelow.type = newType;
@@ -87,10 +89,10 @@ bool simulateSand(World_t* world, int x, int y, CellType newType, bool isEven)
     auto doRight{[&](){
         if (!couldMove && x < WORLD_WIDTH-1)
         {
-            Cell& cellRightBelow = getParticle(*world, x+1, y+1);
+            Cell& cellRightBelow = getCell(*world, x+1, y+1);
             if (cellRightBelow.type == CELL_TYPE_NONE || (newType == CELL_TYPE_SAND && cellRightBelow.type == CELL_TYPE_WATER))
             {
-                auto& cell = getParticle(*world, x, y);
+                auto& cell = getCell(*world, x, y);
                 cell.type = ((newType == CELL_TYPE_SAND && cellRightBelow.type == CELL_TYPE_WATER) ? CELL_TYPE_WATER : CELL_TYPE_NONE);
                 cell.isModified = true;
                 cellRightBelow.type = newType;
@@ -123,13 +125,13 @@ bool simulateWater(World_t* world, int x, int y, CellType newType, bool isEven)
     auto doLeft{[&](){
         if (!couldMove && x > 0)
         {
-            Cell& cellLeft = getParticle(*world, x-1, y);
+            Cell& cellLeft = getCell(*world, x-1, y);
             if (cellLeft.type == CELL_TYPE_NONE)
             {
                 cellLeft.type = newType;
                 cellLeft.isModified = true;
                 couldMove = true;
-                auto& cell = getParticle(*world, x, y);
+                auto& cell = getCell(*world, x, y);
                 cell.type = CELL_TYPE_NONE;
                 cell.isModified = true;
             }
@@ -139,13 +141,13 @@ bool simulateWater(World_t* world, int x, int y, CellType newType, bool isEven)
     auto doRight{[&](){
         if (!couldMove && x < WORLD_WIDTH-1)
         {
-            Cell& cellRight = getParticle(*world, x+1, y);
+            Cell& cellRight = getCell(*world, x+1, y);
             if (cellRight.type == CELL_TYPE_NONE)
             {
                 cellRight.type = newType;
                 cellRight.isModified = true;
                 couldMove = true;
-                auto& cell = getParticle(*world, x, y);
+                auto& cell = getCell(*world, x, y);
                 cell.type = CELL_TYPE_NONE;
                 cell.isModified = true;
             }
@@ -173,7 +175,7 @@ void stepSimulation(World_t* world, ulong frame)
     {
         for (int x{isEven ? 0 : WORLD_WIDTH-1}; (isEven ? x < WORLD_WIDTH : x >= 0); (isEven ? ++x : --x))
         {
-            const Cell& cell = getParticle(*world, x, y);
+            const Cell& cell = getCell(*world, x, y);
 
             switch (cell.type)
             {
@@ -206,7 +208,7 @@ void drawWorld(World_t& world, SDL_Texture* tex, SDL_PixelFormat* pixFormat)
     {
         for (int x{}; x < WORLD_WIDTH; ++x)
         {
-            Cell& cell = getParticle(world, x, y);
+            Cell& cell = getCell(world, x, y);
             if (cell.isModified)
             {
                 pixels[y*WORLD_WIDTH+x] = SDL_MapRGBA(pixFormat, UNPACK_COLOR_RGB(cellTypeColors[cell.type]), 255);
@@ -216,6 +218,30 @@ void drawWorld(World_t& world, SDL_Texture* tex, SDL_PixelFormat* pixFormat)
     }
 
     SDL_UnlockTexture(tex);
+}
+
+void paintCells(World_t* world, uint centerX, uint centerY, int radius, CellType type)
+{
+    const int rad2 = radius*radius;
+
+    for (int yoffs{-radius}; yoffs <= radius; ++yoffs)
+    {
+        if (centerY+yoffs < 0 || centerY+yoffs >= WORLD_HEIGHT)
+            continue;
+
+        for (int xoffs{-radius}; xoffs <= radius; ++xoffs)
+        {
+            if (centerX+xoffs < 0 || centerX+xoffs >= WORLD_WIDTH)
+                continue;
+
+            if (xoffs*xoffs + yoffs*yoffs <= rad2 && rand() % 2)
+            {
+                auto& cell = getCell(*world, centerX+xoffs, centerY+yoffs);
+                cell.type = type;
+                cell.isModified = true;
+            }
+        }
+    }
 }
 
 int main()
@@ -283,29 +309,13 @@ int main()
         {
             const int cellX = mouseX/CELL_SCALE;
             const int cellY = mouseY/CELL_SCALE;
-            for (int i{-50}; i <= 50; ++i)
-            {
-                if (rand() % 2 && cellX+i >= 0 && cellX+i < WORLD_WIDTH)
-                {
-                    auto& cell = getParticle(world, cellX+i, cellY);
-                    cell.type = CELL_TYPE_SAND;
-                    cell.isModified = true;
-                }
-            }
+            paintCells(&world, cellX, cellY, BRUSH_RAD, CELL_TYPE_SAND);
         }
         if (isMouseInWindow && isRMouseBtnDown)
         {
             const int cellX = mouseX/CELL_SCALE;
             const int cellY = mouseY/CELL_SCALE;
-            for (int i{-50}; i <= 50; ++i)
-            {
-                if (rand() % 2 && cellX+i >= 0 && cellX+i < WORLD_WIDTH)
-                {
-                    auto& cell = getParticle(world, cellX+i, cellY);
-                    cell.type = CELL_TYPE_WATER;
-                    cell.isModified = true;
-                }
-            }
+            paintCells(&world, cellX, cellY, BRUSH_RAD, CELL_TYPE_WATER);
         }
 
         stepSimulation(&world, frame);
