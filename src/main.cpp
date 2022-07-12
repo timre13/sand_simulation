@@ -310,8 +310,13 @@ int main()
 
         stepSimulation(&world, frame);
 
+        const uint64_t renderStart = SDL_GetTicks64();
+
         drawWorld(world, rendTex, rendTexPixFormat);
         SDL_RenderCopy(rend, rendTex, nullptr, nullptr);
+
+        const uint64_t renderTime = SDL_GetTicks64()-renderStart;
+        SDL_SetWindowTitle(win, ("SandSim - render time: "+std::to_string(renderTime)+"ms").c_str());
 
         SDL_RenderPresent(rend);
         //SDL_Delay(16);
