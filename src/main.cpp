@@ -12,7 +12,16 @@ enum CellType : uint8_t
     CELL_TYPE_NONE,
     CELL_TYPE_SAND,
     CELL_TYPE_WATER,
+    CELL_TYPE__COUNT,
 };
+
+static constexpr SDL_Color cellTypeColors[CELL_TYPE__COUNT] = {
+    { 50,  50,  50, 255}, // None - background
+    {153, 149, 125, 255}, // Sand
+    { 50,  50, 255, 255}, // Water
+};
+
+#define UNPACK_COLOR_RGB(x) x.r, x.g, x.b
 
 struct Cell
 {
@@ -153,6 +162,7 @@ void stepSimulation(World_t* world, ulong frame)
             switch (cell.type)
             {
             case CELL_TYPE_NONE:
+            case CELL_TYPE__COUNT:
                 break;
 
             case CELL_TYPE_SAND:
@@ -167,27 +177,25 @@ void stepSimulation(World_t* world, ulong frame)
     }
 }
 
-void drawWorld(const World_t& world, SDL_Renderer* rend)
+#define REND_TEXT_PIXEL_FORMAT_ENUM SDL_PIXELFORMAT_RGBA32
+
+void drawWorld(const World_t& world, SDL_Texture* tex, SDL_PixelFormat* pixFormat)
 {
+    uint32_t* pixels;
+    int pitch;
+    int ret = SDL_LockTexture(tex, nullptr, (void**)&pixels, &pitch);
+    assert(ret == 0);
+
     for (int y{}; y < WORLD_HEIGHT; ++y)
     {
         for (int x{}; x < WORLD_WIDTH; ++x)
         {
             const Cell& cell = getParticle(world, x, y);
-            if (cell.type == CELL_TYPE_NONE)
-                continue;
-
-            switch (cell.type)
-            {
-            case CELL_TYPE_NONE: break;
-            case CELL_TYPE_SAND: SDL_SetRenderDrawColor(rend, 153, 149, 125, 255); break;
-            case CELL_TYPE_WATER: SDL_SetRenderDrawColor(rend, 50, 50, 255, 255); break;
-            }
-
-            SDL_Rect rect{x*CELL_SCALE, y*CELL_SCALE, CELL_SCALE, CELL_SCALE};
-            SDL_RenderFillRect(rend, &rect);
+            pixels[y*WORLD_WIDTH+x] = SDL_MapRGBA(pixFormat, UNPACK_COLOR_RGB(cellTypeColors[cell.type]), 255);
         }
     }
+
+    SDL_UnlockTexture(tex);
 }
 
 int main()
@@ -202,6 +210,12 @@ int main()
 
     SDL_Renderer* rend = SDL_CreateRenderer(win, 0, SDL_RENDERER_PRESENTVSYNC);
     assert(rend);
+
+    SDL_Texture* rendTex = SDL_CreateTexture(rend, REND_TEXT_PIXEL_FORMAT_ENUM, SDL_TEXTUREACCESS_STREAMING, WORLD_WIDTH, WORLD_HEIGHT);
+    assert(rendTex);
+
+    SDL_PixelFormat* rendTexPixFormat = SDL_AllocFormat(REND_TEXT_PIXEL_FORMAT_ENUM);
+    assert(rendTexPixFormat);
 
     World_t world{};
 
@@ -245,7 +259,7 @@ int main()
             = (mouseX >= 0 && mouseX < WORLD_WIDTH*CELL_SCALE)
             && (mouseY >= 0 && mouseY < WORLD_HEIGHT*CELL_SCALE);
 
-        SDL_SetRenderDrawColor(rend, 50, 50, 50, 255);
+        SDL_SetRenderDrawColor(rend, 0, 0, 0, 255);
         SDL_RenderClear(rend);
 
         if (isMouseInWindow && isLMouseBtnDown)
@@ -270,13 +284,17 @@ int main()
         }
 
         stepSimulation(&world, frame);
-        drawWorld(world, rend);
+
+        drawWorld(world, rendTex, rendTexPixFormat);
+        SDL_RenderCopy(rend, rendTex, nullptr, nullptr);
 
         SDL_RenderPresent(rend);
         //SDL_Delay(16);
         ++frame;
     }
 
+    SDL_FreeFormat(rendTexPixFormat);
+    SDL_DestroyTexture(rendTex);
     SDL_DestroyWindow(win);
     SDL_DestroyRenderer(rend);
     SDL_Quit();
