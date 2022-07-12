@@ -11,15 +11,16 @@
 
 enum CellType : uint8_t
 {
-    CELL_TYPE_NONE,
+    CELL_TYPE_NONE, // Has to be the first
     CELL_TYPE_SAND,
     CELL_TYPE_WATER,
     CELL_TYPE_DIRT,
+    // Add new here
     CELL_TYPE__COUNT,
 };
 
 static constexpr SDL_Color cellTypeColors[CELL_TYPE__COUNT] = {
-    { 50,  50,  50, 255}, // None - background
+    { 80,  80,  80, 255}, // None - background
     {153, 149, 125, 255}, // Sand
     { 50,  50, 255, 255}, // Water
     { 65,  44,  23, 255}, // Dirt
@@ -223,7 +224,7 @@ void drawWorld(World_t& world, SDL_Texture* tex, SDL_PixelFormat* pixFormat)
     SDL_UnlockTexture(tex);
 }
 
-void paintCells(World_t* world, uint centerX, uint centerY, int radius, CellType type)
+void paintCells(World_t* world, uint centerX, uint centerY, int radius, CellType type, bool randomize=true)
 {
     const int rad2 = radius*radius;
 
@@ -237,12 +238,32 @@ void paintCells(World_t* world, uint centerX, uint centerY, int radius, CellType
             if (centerX+xoffs < 0 || centerX+xoffs >= WORLD_WIDTH)
                 continue;
 
-            if (xoffs*xoffs + yoffs*yoffs <= rad2 && rand() % 2)
+            if (xoffs*xoffs + yoffs*yoffs <= rad2 && (!randomize || rand() % 2))
             {
                 auto& cell = getCell(*world, centerX+xoffs, centerY+yoffs);
                 cell.type = type;
                 cell.isModified = true;
             }
+        }
+    }
+}
+
+void drawToolbar(SDL_Renderer* rend, CellType brushMaterial)
+{
+    assert(brushMaterial > CELL_TYPE_NONE && brushMaterial < CELL_TYPE__COUNT);
+
+    static constexpr int rectSize = 40;
+
+    for (int i{1}; i < CELL_TYPE__COUNT; ++i)
+    {
+        SDL_SetRenderDrawColor(rend, UNPACK_COLOR_RGB(cellTypeColors[i]), 255);
+        SDL_Rect rect{WORLD_WIDTH*CELL_SCALE-(rectSize+5), 5+(i-1)*rectSize, rectSize, rectSize};
+        SDL_RenderFillRect(rend, &rect);
+
+        if (i == brushMaterial)
+        {
+            SDL_SetRenderDrawColor(rend, 255, 255, 255, 255);
+            SDL_RenderDrawRect(rend, &rect);
         }
     }
 }
@@ -269,6 +290,7 @@ int main()
     World_t world{};
 
     ulong frame{};
+    CellType brushMaterial = CELL_TYPE_SAND;
 
     bool isLMouseBtnDown = false;
     bool isRMouseBtnDown = false;
@@ -297,6 +319,17 @@ int main()
                     else if (event.button.button == SDL_BUTTON_RIGHT)
                         isRMouseBtnDown = false;
                     break;
+
+                case SDL_MOUSEWHEEL:
+                    if (event.wheel.y > 0)
+                        (int&)brushMaterial -= 1;
+                    else
+                        (int&)brushMaterial += 1;
+
+                    if (brushMaterial <= CELL_TYPE_NONE)
+                        brushMaterial = CellType(CELL_TYPE_NONE+1);
+                    else if (brushMaterial >= CELL_TYPE__COUNT)
+                        brushMaterial = CellType(CELL_TYPE__COUNT-1);
             }
         }
         if (!running)
@@ -312,13 +345,13 @@ int main()
         {
             const int cellX = mouseX/CELL_SCALE;
             const int cellY = mouseY/CELL_SCALE;
-            paintCells(&world, cellX, cellY, BRUSH_RAD, CELL_TYPE_DIRT);
+            paintCells(&world, cellX, cellY, BRUSH_RAD, brushMaterial);
         }
         if (isMouseInWindow && isRMouseBtnDown)
         {
             const int cellX = mouseX/CELL_SCALE;
             const int cellY = mouseY/CELL_SCALE;
-            paintCells(&world, cellX, cellY, BRUSH_RAD, CELL_TYPE_WATER);
+            paintCells(&world, cellX, cellY, BRUSH_RAD, CELL_TYPE_NONE, false);
         }
 
         stepSimulation(&world, frame);
@@ -327,6 +360,7 @@ int main()
 
         drawWorld(world, rendTex, rendTexPixFormat);
         SDL_RenderCopy(rend, rendTex, nullptr, nullptr);
+        drawToolbar(rend, brushMaterial);
 
         const uint64_t renderTime = SDL_GetTicks64()-renderStart;
         SDL_SetWindowTitle(win, ("SandSim - render time: "+std::to_string(renderTime)+"ms").c_str());
