@@ -14,6 +14,7 @@ enum CellType : uint8_t
     CELL_TYPE_NONE,
     CELL_TYPE_SAND,
     CELL_TYPE_WATER,
+    CELL_TYPE_DIRT,
     CELL_TYPE__COUNT,
 };
 
@@ -21,6 +22,7 @@ static constexpr SDL_Color cellTypeColors[CELL_TYPE__COUNT] = {
     { 50,  50,  50, 255}, // None - background
     {153, 149, 125, 255}, // Sand
     { 50,  50, 255, 255}, // Water
+    { 65,  44,  23, 255}, // Dirt
 };
 
 #define UNPACK_COLOR_RGB(x) x.r, x.g, x.b
@@ -181,6 +183,7 @@ void stepSimulation(World_t* world, ulong frame)
             {
             case CELL_TYPE_NONE:
             case CELL_TYPE__COUNT:
+            case CELL_TYPE_DIRT: // Static cell
                 break;
 
             case CELL_TYPE_SAND:
@@ -309,7 +312,7 @@ int main()
         {
             const int cellX = mouseX/CELL_SCALE;
             const int cellY = mouseY/CELL_SCALE;
-            paintCells(&world, cellX, cellY, BRUSH_RAD, CELL_TYPE_SAND);
+            paintCells(&world, cellX, cellY, BRUSH_RAD, CELL_TYPE_DIRT);
         }
         if (isMouseInWindow && isRMouseBtnDown)
         {
