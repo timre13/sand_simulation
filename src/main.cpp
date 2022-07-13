@@ -15,15 +15,17 @@ enum CellType : uint8_t
     CELL_TYPE_SAND,
     CELL_TYPE_WATER,
     CELL_TYPE_DIRT,
+    CELL_TYPE_WOOD,
     // Add new here
     CELL_TYPE__COUNT,
 };
 
 static constexpr SDL_Color cellTypeColors[CELL_TYPE__COUNT] = {
-    { 80,  80,  80, 255}, // None - background
+    {100, 100, 100, 255}, // None - background
     {153, 149, 125, 255}, // Sand
     { 50,  50, 255, 255}, // Water
     { 65,  44,  23, 255}, // Dirt
+    { 90,  74,  43, 255}, // Wood
 };
 
 #define UNPACK_COLOR_RGB(x) x.r, x.g, x.b
@@ -185,6 +187,7 @@ void stepSimulation(World_t* world, ulong frame)
             case CELL_TYPE_NONE:
             case CELL_TYPE__COUNT:
             case CELL_TYPE_DIRT: // Static cell
+            case CELL_TYPE_WOOD: // Static cell
                 break;
 
             case CELL_TYPE_SAND:
