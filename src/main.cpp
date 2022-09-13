@@ -16,6 +16,7 @@ enum CellType : uint8_t
     CELL_TYPE_WATER,
     CELL_TYPE_DIRT,
     CELL_TYPE_WOOD,
+    CELL_TYPE_FIRE,
     // Add new here
     CELL_TYPE__COUNT,
 };
@@ -26,6 +27,7 @@ static constexpr SDL_Color cellTypeColors[CELL_TYPE__COUNT] = {
     { 50,  50, 255, 255}, // Water
     { 65,  44,  23, 255}, // Dirt
     { 90,  74,  43, 255}, // Wood
+    {181,  60,  21, 255}, // Fire
 };
 
 #define UNPACK_COLOR_RGB(x) x.r, x.g, x.b
@@ -173,6 +175,97 @@ bool simulateWater(World_t* world, int x, int y, CellType newType, bool isEven)
     return couldMove;
 }
 
+void simulateFire(World_t* world, int x, int y)
+{
+    if (std::rand() % 20 != 0)
+    {
+        return;
+    }
+
+    // Above
+    if (y > 0)
+    {
+        Cell& cellAbove = getCell(*world, x, y-1);
+        if (cellAbove.type == CELL_TYPE_WOOD)
+        {
+            cellAbove.type = CELL_TYPE_FIRE;
+            cellAbove.isModified = true;
+            auto& cell = getCell(*world, x, y);
+            cell.type = CELL_TYPE_NONE;
+            cell.isModified = true;
+        }
+    }
+
+    // Below
+    if (y < WORLD_HEIGHT-1)
+    {
+        Cell& cellBelow = getCell(*world, x, y+1);
+        if (cellBelow.type == CELL_TYPE_WOOD)
+        {
+            cellBelow.type = CELL_TYPE_FIRE;
+            cellBelow.isModified = true;
+            auto& cell = getCell(*world, x, y);
+            cell.type = CELL_TYPE_NONE;
+            cell.isModified = true;
+        }
+    }
+
+    // Left
+    if (x > 0)
+    {
+        Cell& cellLeft = getCell(*world, x-1, y);
+        if (cellLeft.type == CELL_TYPE_WOOD)
+        {
+            cellLeft.type = CELL_TYPE_FIRE;
+            cellLeft.isModified = true;
+            auto& cell = getCell(*world, x, y);
+            cell.type = CELL_TYPE_NONE;
+            cell.isModified = true;
+        }
+    }
+
+    // Right
+    if (x < WORLD_WIDTH-1)
+    {
+        Cell& cellRight = getCell(*world, x+1, y);
+        if (cellRight.type == CELL_TYPE_WOOD)
+        {
+            cellRight.type = CELL_TYPE_FIRE;
+            cellRight.isModified = true;
+            auto& cell = getCell(*world, x, y);
+            cell.type = CELL_TYPE_NONE;
+            cell.isModified = true;
+        }
+    }
+
+    // Left below
+    if (x > 0 && y < WORLD_HEIGHT-1)
+    {
+        Cell& cellLeftBelow = getCell(*world, x-1, y+1);
+        if (cellLeftBelow.type == CELL_TYPE_WOOD)
+        {
+            cellLeftBelow.type = CELL_TYPE_FIRE;
+            cellLeftBelow.isModified = true;
+            auto& cell = getCell(*world, x, y);
+            cell.type = CELL_TYPE_NONE;
+            cell.isModified = true;
+        }
+    }
+
+    if (x < WORLD_WIDTH-1 && y < WORLD_HEIGHT-1)
+    {
+        Cell& cellRightBelow = getCell(*world, x+1, y+1);
+        if (cellRightBelow.type == CELL_TYPE_WOOD)
+        {
+            cellRightBelow.type = CELL_TYPE_FIRE;
+            cellRightBelow.isModified = true;
+            auto& cell = getCell(*world, x, y);
+            cell.type = CELL_TYPE_NONE;
+            cell.isModified = true;
+        }
+    }
+}
+
 void stepSimulation(World_t* world, ulong frame)
 {
     const bool isEven = (frame % 2 == 0);
@@ -197,6 +290,9 @@ void stepSimulation(World_t* world, ulong frame)
             case CELL_TYPE_WATER:
                 simulateWater(world, x, y, CELL_TYPE_WATER, isEven);
                 break;
+
+            case CELL_TYPE_FIRE:
+                simulateFire(world, x, y);
             }
         }
     }
