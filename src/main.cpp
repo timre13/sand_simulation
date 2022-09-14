@@ -63,52 +63,33 @@ bool simulateSand(World_t* world, int x, int y, CellType newType, bool isEven)
 
     bool couldMove = false;
 
-    // Below
-    {
-        Cell& cellBelow = getCell(*world, x, y+1);
-        if (cellBelow.type == CELL_TYPE_NONE || (newType == CELL_TYPE_SAND && cellBelow.type == CELL_TYPE_WATER))
+    auto handleCell = [world, x, y, newType](int relX, int relY){
+        Cell& checkedCell = getCell(*world, x+relX, y+relY);
+        if (checkedCell.type == CELL_TYPE_NONE || (newType == CELL_TYPE_SAND && checkedCell.type == CELL_TYPE_WATER))
         {
             auto& cell = getCell(*world, x, y);
-            cell.type = ((newType == CELL_TYPE_SAND && cellBelow.type == CELL_TYPE_WATER) ? CELL_TYPE_WATER : CELL_TYPE_NONE);
+            cell.type = ((newType == CELL_TYPE_SAND && checkedCell.type == CELL_TYPE_WATER) ? CELL_TYPE_WATER : CELL_TYPE_NONE);
             cell.isModified = true;
-            cellBelow.type = newType;
-            cellBelow.isModified = true;
-            couldMove = true;
+            checkedCell.type = newType;
+            checkedCell.isModified = true;
+            return true;
         }
-    }
+        return false;
+    };
+
+    // Below
+    couldMove = handleCell(0, 1);
 
     // Left below
     auto doLeft{[&](){
         if (!couldMove && x > 0)
-        {
-            Cell& cellLeftBelow = getCell(*world, x-1, y+1);
-            if (cellLeftBelow.type == CELL_TYPE_NONE || (newType == CELL_TYPE_SAND && cellLeftBelow.type == CELL_TYPE_WATER))
-            {
-                auto& cell = getCell(*world, x, y);
-                cell.type = ((newType == CELL_TYPE_SAND && cellLeftBelow.type == CELL_TYPE_WATER) ? CELL_TYPE_WATER : CELL_TYPE_NONE);
-                cell.isModified = true;
-                cellLeftBelow.type = newType;
-                cellLeftBelow.isModified = true;
-                couldMove = true;
-            }
-        }
+            couldMove = handleCell(-1, 1);
     }};
 
     // Right below
     auto doRight{[&](){
         if (!couldMove && x < WORLD_WIDTH-1)
-        {
-            Cell& cellRightBelow = getCell(*world, x+1, y+1);
-            if (cellRightBelow.type == CELL_TYPE_NONE || (newType == CELL_TYPE_SAND && cellRightBelow.type == CELL_TYPE_WATER))
-            {
-                auto& cell = getCell(*world, x, y);
-                cell.type = ((newType == CELL_TYPE_SAND && cellRightBelow.type == CELL_TYPE_WATER) ? CELL_TYPE_WATER : CELL_TYPE_NONE);
-                cell.isModified = true;
-                cellRightBelow.type = newType;
-                cellRightBelow.isModified = true;
-                couldMove = true;
-            }
-        }
+            couldMove = handleCell(1, 1);
     }};
 
     if (isEven)
@@ -131,36 +112,28 @@ bool simulateWater(World_t* world, int x, int y, CellType newType, bool isEven)
 
     couldMove = simulateSand(world, x, y, newType, isEven);
 
+    auto handleCell = [world, x, y, newType](int relX, int relY){
+        Cell& checkedCell = getCell(*world, x+relX, y+relY);
+        if (checkedCell.type == CELL_TYPE_NONE)
+        {
+            checkedCell.type = newType;
+            checkedCell.isModified = true;
+            auto& cell = getCell(*world, x, y);
+            cell.type = CELL_TYPE_NONE;
+            cell.isModified = true;
+            return true;
+        }
+        return false;
+    };
+
     auto doLeft{[&](){
         if (!couldMove && x > 0)
-        {
-            Cell& cellLeft = getCell(*world, x-1, y);
-            if (cellLeft.type == CELL_TYPE_NONE)
-            {
-                cellLeft.type = newType;
-                cellLeft.isModified = true;
-                couldMove = true;
-                auto& cell = getCell(*world, x, y);
-                cell.type = CELL_TYPE_NONE;
-                cell.isModified = true;
-            }
-        }
+            couldMove = handleCell(-1, 0);
     }};
 
     auto doRight{[&](){
         if (!couldMove && x < WORLD_WIDTH-1)
-        {
-            Cell& cellRight = getCell(*world, x+1, y);
-            if (cellRight.type == CELL_TYPE_NONE)
-            {
-                cellRight.type = newType;
-                cellRight.isModified = true;
-                couldMove = true;
-                auto& cell = getCell(*world, x, y);
-                cell.type = CELL_TYPE_NONE;
-                cell.isModified = true;
-            }
-        }
+            couldMove = handleCell(1, 0);
     }};
 
     if (isEven)
@@ -196,77 +169,39 @@ void simulateFire(World_t* world, int x, int y)
         return;
     }
 
+    auto handleCell = [world, x, y](int relX, int relY){
+        Cell& checkedCell = getCell(*world, x+relX, y+relY);
+        if (checkedCell.type == CELL_TYPE_WOOD)
+        {
+            checkedCell.type = CELL_TYPE_FIRE;
+            checkedCell.lifeRemaining = FIRE_DEF_LIFE;
+            checkedCell.isModified = true;
+        }
+    };
+
     // Above
     if (y > 0)
-    {
-        Cell& cellAbove = getCell(*world, x, y-1);
-        if (cellAbove.type == CELL_TYPE_WOOD)
-        {
-            cellAbove.type = CELL_TYPE_FIRE;
-            cellAbove.lifeRemaining = FIRE_DEF_LIFE;
-            cellAbove.isModified = true;
-        }
-    }
+        handleCell(0, -1);
 
     // Below
     if (y < WORLD_HEIGHT-1)
-    {
-        Cell& cellBelow = getCell(*world, x, y+1);
-        if (cellBelow.type == CELL_TYPE_WOOD)
-        {
-            cellBelow.type = CELL_TYPE_FIRE;
-            cellBelow.lifeRemaining = FIRE_DEF_LIFE;
-            cellBelow.isModified = true;
-        }
-    }
+        handleCell(0, 1);
 
     // Left
     if (x > 0)
-    {
-        Cell& cellLeft = getCell(*world, x-1, y);
-        if (cellLeft.type == CELL_TYPE_WOOD)
-        {
-            cellLeft.type = CELL_TYPE_FIRE;
-            cellLeft.lifeRemaining = FIRE_DEF_LIFE;
-            cellLeft.isModified = true;
-        }
-    }
+        handleCell(-1, 0);
 
     // Right
     if (x < WORLD_WIDTH-1)
-    {
-        Cell& cellRight = getCell(*world, x+1, y);
-        if (cellRight.type == CELL_TYPE_WOOD)
-        {
-            cellRight.type = CELL_TYPE_FIRE;
-            cellRight.lifeRemaining = FIRE_DEF_LIFE;
-            cellRight.isModified = true;
-        }
-    }
+        handleCell(1, 0);
 
     // Left below
     if (x > 0 && y < WORLD_HEIGHT-1)
-    {
-        Cell& cellLeftBelow = getCell(*world, x-1, y+1);
-        if (cellLeftBelow.type == CELL_TYPE_WOOD)
-        {
-            cellLeftBelow.type = CELL_TYPE_FIRE;
-            cellLeftBelow.lifeRemaining = FIRE_DEF_LIFE;
-            cellLeftBelow.isModified = true;
-        }
-    }
+        handleCell(-1, 1);
 
     // Right below
     if (x < WORLD_WIDTH-1 && y < WORLD_HEIGHT-1)
-    {
-        Cell& cellRightBelow = getCell(*world, x+1, y+1);
-        if (cellRightBelow.type == CELL_TYPE_WOOD)
-        {
-            cellRightBelow.type = CELL_TYPE_FIRE;
-            cellRightBelow.lifeRemaining = FIRE_DEF_LIFE;
-            cellRightBelow.isModified = true;
-        }
-    }
+        handleCell(1, 1);
 }
 
 void stepSimulation(World_t* world, ulong frame)
