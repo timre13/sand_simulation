@@ -6,6 +6,7 @@
 #define WORLD_WIDTH 700
 #define WORLD_HEIGHT 500
 #define CELL_SCALE 2
+#define FIRE_DEF_LIFE 30
 
 #define BRUSH_RAD 5
 
@@ -27,7 +28,7 @@ static constexpr SDL_Color cellTypeColors[CELL_TYPE__COUNT] = {
     { 50,  50, 255, 255}, // Water
     { 65,  44,  23, 255}, // Dirt
     { 90,  74,  43, 255}, // Wood
-    {181,  60,  21, 255}, // Fire
+    {198,  80,  31, 255}, // Fire
 };
 
 #define UNPACK_COLOR_RGB(x) x.r, x.g, x.b
@@ -35,6 +36,7 @@ static constexpr SDL_Color cellTypeColors[CELL_TYPE__COUNT] = {
 struct Cell
 {
     CellType type : 4;
+    int lifeRemaining = FIRE_DEF_LIFE; // Only if fire
     bool isModified = true;
 };
 
@@ -177,6 +179,18 @@ bool simulateWater(World_t* world, int x, int y, CellType newType, bool isEven)
 
 void simulateFire(World_t* world, int x, int y)
 {
+    if (std::rand() % 10 == 0)
+    {
+        auto& cell = getCell(*world, x, y);
+        --cell.lifeRemaining;
+        if (cell.lifeRemaining <= 0)
+        {
+            cell.type = CELL_TYPE_NONE;
+            cell.isModified = true;
+            return;
+        }
+    }
+
     if (std::rand() % 20 != 0)
     {
         return;
@@ -189,10 +203,8 @@ void simulateFire(World_t* world, int x, int y)
         if (cellAbove.type == CELL_TYPE_WOOD)
         {
             cellAbove.type = CELL_TYPE_FIRE;
+            cellAbove.lifeRemaining = FIRE_DEF_LIFE;
             cellAbove.isModified = true;
-            auto& cell = getCell(*world, x, y);
-            cell.type = CELL_TYPE_NONE;
-            cell.isModified = true;
         }
     }
 
@@ -203,10 +215,8 @@ void simulateFire(World_t* world, int x, int y)
         if (cellBelow.type == CELL_TYPE_WOOD)
         {
             cellBelow.type = CELL_TYPE_FIRE;
+            cellBelow.lifeRemaining = FIRE_DEF_LIFE;
             cellBelow.isModified = true;
-            auto& cell = getCell(*world, x, y);
-            cell.type = CELL_TYPE_NONE;
-            cell.isModified = true;
         }
     }
 
@@ -217,10 +227,8 @@ void simulateFire(World_t* world, int x, int y)
         if (cellLeft.type == CELL_TYPE_WOOD)
         {
             cellLeft.type = CELL_TYPE_FIRE;
+            cellLeft.lifeRemaining = FIRE_DEF_LIFE;
             cellLeft.isModified = true;
-            auto& cell = getCell(*world, x, y);
-            cell.type = CELL_TYPE_NONE;
-            cell.isModified = true;
         }
     }
 
@@ -231,10 +239,8 @@ void simulateFire(World_t* world, int x, int y)
         if (cellRight.type == CELL_TYPE_WOOD)
         {
             cellRight.type = CELL_TYPE_FIRE;
+            cellRight.lifeRemaining = FIRE_DEF_LIFE;
             cellRight.isModified = true;
-            auto& cell = getCell(*world, x, y);
-            cell.type = CELL_TYPE_NONE;
-            cell.isModified = true;
         }
     }
 
@@ -245,23 +251,20 @@ void simulateFire(World_t* world, int x, int y)
         if (cellLeftBelow.type == CELL_TYPE_WOOD)
         {
             cellLeftBelow.type = CELL_TYPE_FIRE;
+            cellLeftBelow.lifeRemaining = FIRE_DEF_LIFE;
             cellLeftBelow.isModified = true;
-            auto& cell = getCell(*world, x, y);
-            cell.type = CELL_TYPE_NONE;
-            cell.isModified = true;
         }
     }
 
+    // Right below
     if (x < WORLD_WIDTH-1 && y < WORLD_HEIGHT-1)
     {
         Cell& cellRightBelow = getCell(*world, x+1, y+1);
         if (cellRightBelow.type == CELL_TYPE_WOOD)
         {
             cellRightBelow.type = CELL_TYPE_FIRE;
+            cellRightBelow.lifeRemaining = FIRE_DEF_LIFE;
             cellRightBelow.isModified = true;
-            auto& cell = getCell(*world, x, y);
-            cell.type = CELL_TYPE_NONE;
-            cell.isModified = true;
         }
     }
 }
@@ -293,6 +296,7 @@ void stepSimulation(World_t* world, ulong frame)
 
             case CELL_TYPE_FIRE:
                 simulateFire(world, x, y);
+                break;
             }
         }
     }
