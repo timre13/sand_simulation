@@ -1,6 +1,7 @@
 #include <array>
 #include <cassert>
 #include <iostream>
+#include <cstdio>
 #include <SDL2/SDL.h>
 
 #define WORLD_WIDTH 700
@@ -327,6 +328,14 @@ void drawBrush(SDL_Renderer* rend, int curx, int cury)
     drawCircle(rend, curx, cury, g_brushRad*CELL_SCALE, {255, 255, 255, 60});
 }
 
+template <int Len>
+std::string intToStrPadded(int input)
+{
+    char buff[Len+1]{};
+    std::snprintf(buff, sizeof(buff), "%0*d", Len, input);
+    return buff;
+};
+
 int main()
 {
     std::srand(time(nullptr));
@@ -421,17 +430,20 @@ int main()
             paintCells(&world, cellX, cellY, g_brushRad, CELL_TYPE_NONE, false);
         }
 
+        const uint64_t simStart = SDL_GetTicks64();
         stepSimulation(&world, frame);
+        const uint64_t simElapsed = SDL_GetTicks64()-simStart;
 
         const uint64_t renderStart = SDL_GetTicks64();
-
         drawWorld(world, rendTex, rendTexPixFormat);
         SDL_RenderCopy(rend, rendTex, nullptr, nullptr);
         drawBrush(rend, mouseX, mouseY);
         drawToolbar(rend, brushMaterial);
+        const uint64_t renderElapsed = SDL_GetTicks64()-renderStart;
 
-        const uint64_t renderTime = SDL_GetTicks64()-renderStart;
-        SDL_SetWindowTitle(win, ("SandSim - render time: "+std::to_string(renderTime)+"ms").c_str());
+        SDL_SetWindowTitle(win, ("SandSim - frame time: "+intToStrPadded<4>(renderElapsed+simElapsed)+"ms "
+                    "(simulation: "+intToStrPadded<3>(simElapsed)+"ms, "
+                    "rendering: "+intToStrPadded<3>(renderElapsed)+"ms)").c_str());
 
         SDL_RenderPresent(rend);
         //SDL_Delay(16);
