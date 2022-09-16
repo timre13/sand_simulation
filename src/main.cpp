@@ -306,6 +306,27 @@ void drawToolbar(SDL_Renderer* rend, CellType brushMaterial)
     }
 }
 
+void drawCircle(SDL_Renderer* rend, int x, int y, int r, const SDL_Color& color)
+{
+    SDL_SetRenderDrawColor(rend, color.r, color.g, color.b, color.a);
+    const int r2 = r*r;
+    for (int ry{-r}; ry <= r; ++ry)
+    {
+        for (int rx{-r}; rx <= r; ++rx)
+        {
+            if (rx*rx + ry*ry <= r2)
+            {
+                SDL_RenderDrawPoint(rend, x+rx, y+ry);
+            }
+        }
+    }
+}
+
+void drawBrush(SDL_Renderer* rend, int curx, int cury)
+{
+    drawCircle(rend, curx, cury, BRUSH_RAD, {255, 255, 255, 60});
+}
+
 int main()
 {
     std::srand(time(nullptr));
@@ -318,6 +339,7 @@ int main()
 
     SDL_Renderer* rend = SDL_CreateRenderer(win, 0, SDL_RENDERER_PRESENTVSYNC);
     assert(rend);
+    SDL_SetRenderDrawBlendMode(rend, SDL_BLENDMODE_BLEND);
 
     SDL_Texture* rendTex = SDL_CreateTexture(rend, REND_TEXT_PIXEL_FORMAT_ENUM, SDL_TEXTUREACCESS_STREAMING, WORLD_WIDTH, WORLD_HEIGHT);
     assert(rendTex);
@@ -398,6 +420,7 @@ int main()
 
         drawWorld(world, rendTex, rendTexPixFormat);
         SDL_RenderCopy(rend, rendTex, nullptr, nullptr);
+        drawBrush(rend, mouseX, mouseY);
         drawToolbar(rend, brushMaterial);
 
         const uint64_t renderTime = SDL_GetTicks64()-renderStart;
