@@ -8,7 +8,7 @@
 #define CELL_SCALE 2
 #define FIRE_DEF_LIFE 30
 
-#define BRUSH_RAD 5
+int g_brushRad = 10;
 
 enum CellType : uint8_t
 {
@@ -324,7 +324,7 @@ void drawCircle(SDL_Renderer* rend, int x, int y, int r, const SDL_Color& color)
 
 void drawBrush(SDL_Renderer* rend, int curx, int cury)
 {
-    drawCircle(rend, curx, cury, BRUSH_RAD, {255, 255, 255, 60});
+    drawCircle(rend, curx, cury, g_brushRad*CELL_SCALE, {255, 255, 255, 60});
 }
 
 int main()
@@ -381,15 +381,22 @@ int main()
                     break;
 
                 case SDL_MOUSEWHEEL:
-                    if (event.wheel.y > 0)
-                        (int&)brushMaterial -= 1;
-                    else
-                        (int&)brushMaterial += 1;
-
-                    if (brushMaterial <= CELL_TYPE_NONE)
-                        brushMaterial = CellType(CELL_TYPE_NONE+1);
-                    else if (brushMaterial >= CELL_TYPE__COUNT)
-                        brushMaterial = CellType(CELL_TYPE__COUNT-1);
+                    if (SDL_GetModState() & KMOD_CTRL) // If the ctrl is down, change the brush size
+                    {
+                        g_brushRad += (event.wheel.y > 0 ? 1 : -1);
+                        if (g_brushRad < 0)
+                            g_brushRad = 0;
+                        else if (g_brushRad > 1000)
+                            g_brushRad = 1000;
+                    }
+                    else // Change the brush material
+                    {
+                        (int&)brushMaterial += (event.wheel.y > 0 ? -1 : 1);
+                        if (brushMaterial <= CELL_TYPE_NONE)
+                            brushMaterial = CellType(CELL_TYPE_NONE+1);
+                        else if (brushMaterial >= CELL_TYPE__COUNT)
+                            brushMaterial = CellType(CELL_TYPE__COUNT-1);
+                    }
             }
         }
         if (!running)
@@ -405,13 +412,13 @@ int main()
         {
             const int cellX = mouseX/CELL_SCALE;
             const int cellY = mouseY/CELL_SCALE;
-            paintCells(&world, cellX, cellY, BRUSH_RAD, brushMaterial);
+            paintCells(&world, cellX, cellY, g_brushRad, brushMaterial);
         }
         if (isMouseInWindow && isRMouseBtnDown)
         {
             const int cellX = mouseX/CELL_SCALE;
             const int cellY = mouseY/CELL_SCALE;
-            paintCells(&world, cellX, cellY, BRUSH_RAD, CELL_TYPE_NONE, false);
+            paintCells(&world, cellX, cellY, g_brushRad, CELL_TYPE_NONE, false);
         }
 
         stepSimulation(&world, frame);
