@@ -8,6 +8,7 @@
 #define WORLD_HEIGHT 500
 #define CELL_SCALE 2
 #define FIRE_DEF_LIFE 30
+#define MAX_BRUSH_RAD 1000
 
 int g_brushRad = 10;
 
@@ -307,9 +308,19 @@ void drawToolbar(SDL_Renderer* rend, CellType brushMaterial)
     }
 }
 
-void drawCircle(SDL_Renderer* rend, int x, int y, int r, const SDL_Color& color)
+void drawBrush(SDL_Texture* tex, SDL_PixelFormat* pixFormat)
 {
-    SDL_SetRenderDrawColor(rend, color.r, color.g, color.b, color.a);
+    static constexpr int texW = MAX_BRUSH_RAD*2;
+    static constexpr int texH = MAX_BRUSH_RAD*2;
+    const int r = MAX_BRUSH_RAD;
+
+    uint32_t* pixels;
+    int pitch;
+    int ret = SDL_LockTexture(tex, nullptr, (void**)&pixels, &pitch);
+    assert(ret == 0);
+
+    SDL_memset(pixels, 0, texH*pitch);
+
     const int r2 = r*r;
     for (int ry{-r}; ry <= r; ++ry)
     {
@@ -317,15 +328,13 @@ void drawCircle(SDL_Renderer* rend, int x, int y, int r, const SDL_Color& color)
         {
             if (rx*rx + ry*ry <= r2)
             {
-                SDL_RenderDrawPoint(rend, x+rx, y+ry);
+                const int x = MAX_BRUSH_RAD+rx;
+                const int y = MAX_BRUSH_RAD+ry;
+                pixels[y*texW+x] = SDL_MapRGBA(pixFormat, 255, 255, 255, 60);
             }
         }
     }
-}
-
-void drawBrush(SDL_Renderer* rend, int curx, int cury)
-{
-    drawCircle(rend, curx, cury, g_brushRad*CELL_SCALE, {255, 255, 255, 60});
+    SDL_UnlockTexture(tex);
 }
 
 template <int Len>
@@ -350,11 +359,18 @@ int main()
     assert(rend);
     SDL_SetRenderDrawBlendMode(rend, SDL_BLENDMODE_BLEND);
 
-    SDL_Texture* rendTex = SDL_CreateTexture(rend, REND_TEXT_PIXEL_FORMAT_ENUM, SDL_TEXTUREACCESS_STREAMING, WORLD_WIDTH, WORLD_HEIGHT);
+    SDL_Texture* rendTex = SDL_CreateTexture(rend, REND_TEXT_PIXEL_FORMAT_ENUM,
+            SDL_TEXTUREACCESS_STREAMING, WORLD_WIDTH, WORLD_HEIGHT);
     assert(rendTex);
 
     SDL_PixelFormat* rendTexPixFormat = SDL_AllocFormat(REND_TEXT_PIXEL_FORMAT_ENUM);
     assert(rendTexPixFormat);
+
+    SDL_Texture* brushTex = SDL_CreateTexture(rend, REND_TEXT_PIXEL_FORMAT_ENUM,
+            SDL_TEXTUREACCESS_STREAMING, MAX_BRUSH_RAD*2, MAX_BRUSH_RAD*2);
+    assert(brushTex);
+    SDL_SetTextureBlendMode(brushTex, SDL_BLENDMODE_BLEND);
+    drawBrush(brushTex, rendTexPixFormat);
 
     World_t world{};
 
@@ -395,8 +411,8 @@ int main()
                         g_brushRad += (event.wheel.y > 0 ? 1 : -1);
                         if (g_brushRad < 0)
                             g_brushRad = 0;
-                        else if (g_brushRad > 1000)
-                            g_brushRad = 1000;
+                        else if (g_brushRad > MAX_BRUSH_RAD)
+                            g_brushRad = MAX_BRUSH_RAD;
                     }
                     else // Change the brush material
                     {
@@ -435,10 +451,15 @@ int main()
         const uint64_t simElapsed = SDL_GetTicks64()-simStart;
 
         const uint64_t renderStart = SDL_GetTicks64();
+
         drawWorld(world, rendTex, rendTexPixFormat);
         SDL_RenderCopy(rend, rendTex, nullptr, nullptr);
-        drawBrush(rend, mouseX, mouseY);
+
+        const SDL_Rect brushRect{mouseX-g_brushRad*CELL_SCALE, mouseY-g_brushRad*CELL_SCALE, g_brushRad*2*CELL_SCALE, g_brushRad*2*CELL_SCALE};
+        SDL_RenderCopy(rend, brushTex, nullptr, &brushRect);
+
         drawToolbar(rend, brushMaterial);
+
         const uint64_t renderElapsed = SDL_GetTicks64()-renderStart;
 
         SDL_SetWindowTitle(win, ("SandSim - frame time: "+intToStrPadded<4>(renderElapsed+simElapsed)+"ms "
@@ -452,6 +473,7 @@ int main()
 
     SDL_FreeFormat(rendTexPixFormat);
     SDL_DestroyTexture(rendTex);
+    SDL_DestroyTexture(brushTex);
     SDL_DestroyWindow(win);
     SDL_DestroyRenderer(rend);
     SDL_Quit();
