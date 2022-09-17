@@ -282,6 +282,7 @@ void paintCells(World_t* world, uint centerX, uint centerY, int radius, CellType
             {
                 auto& cell = getCell(*world, centerX+xoffs, centerY+yoffs);
                 cell.type = type;
+                cell.lifeRemaining = FIRE_DEF_LIFE;
                 cell.isModified = true;
             }
         }
