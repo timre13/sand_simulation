@@ -327,7 +327,7 @@ void drawBrush(SDL_Texture* tex, SDL_PixelFormat* pixFormat)
     {
         for (int rx{-r}; rx <= r; ++rx)
         {
-            if (rx*rx + ry*ry <= r2)
+            if (rx*rx + ry*ry < r2)
             {
                 const int x = MAX_BRUSH_RAD+rx;
                 const int y = MAX_BRUSH_RAD+ry;
@@ -417,7 +417,7 @@ int main()
                     }
                     else // Change the brush material
                     {
-                        (int&)brushMaterial += (event.wheel.y > 0 ? -1 : 1);
+                        (uint8_t&)brushMaterial += (event.wheel.y > 0 ? -1 : 1);
                         if (brushMaterial <= CELL_TYPE_NONE)
                             brushMaterial = CellType(CELL_TYPE_NONE+1);
                         else if (brushMaterial >= CELL_TYPE__COUNT)
